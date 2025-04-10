@@ -9,6 +9,9 @@ import {
   BarElement,
 } from "chart.js";
 import { Doughnut, Bar } from "react-chartjs-2";
+import { getAuth } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../firebase";
 
 // Mock data (would come from Firebase in production)
 import { mockCreditScore, mockTransactions } from "../mockData";
@@ -22,26 +25,193 @@ ChartJS.register(
   BarElement
 );
 
+// API endpoint base URL - replace with actual API URL in production
+const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+
 const CreditScore = () => {
   const [userScore, setUserScore] = useState(null);
   const [scoreFactors, setScoreFactors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const auth = getAuth();
 
   useEffect(() => {
-    // Simulate API call with setTimeout
-    setTimeout(() => {
-      setUserScore(mockCreditScore);
-      // Calculate mock factors that influence the credit score
-      setScoreFactors([
-        { name: "Transaction Frequency", score: 85, color: "#00ff7f" },
-        { name: "Payment History", score: 92, color: "#00ff7f" },
-        { name: "Transaction Amount", score: 78, color: "#00cc66" },
-        { name: "Merchant Diversity", score: 65, color: "#ffc107" },
-        { name: "Account Age", score: 45, color: "#ff4500" },
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    const fetchCreditScore = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        // Check if user is authenticated
+        const user = auth.currentUser;
+
+        if (!user) {
+          throw new Error("User not authenticated");
+        }
+
+        // Try to get credit score from Firestore first
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+
+        if (userDoc.exists() && userDoc.data().creditScore) {
+          // User already has credit score in Firestore
+          const creditScoreData = userDoc.data().creditScore;
+
+          setUserScore({
+            score: creditScoreData.score,
+            level: creditScoreData.level,
+            message: getLevelMessage(creditScoreData.level),
+            lastUpdated:
+              creditScoreData.last_updated ||
+              new Date().toISOString().split("T")[0],
+            loanLimit: creditScoreData.loan_eligibility?.max_loan_amount || 0,
+          });
+
+          // Extract components for display
+          const components = creditScoreData.components || {};
+          const formattedFactors = [
+            {
+              name: "Transaction Frequency",
+              score: components.transaction_frequency || 0,
+              color: getColorForScore(components.transaction_frequency),
+            },
+            {
+              name: "Credit-Debit Ratio",
+              score: components.credit_debit_ratio || 0,
+              color: getColorForScore(components.credit_debit_ratio),
+            },
+            {
+              name: "Merchant Diversity",
+              score: components.merchant_type_diversity || 0,
+              color: getColorForScore(components.merchant_type_diversity),
+            },
+            {
+              name: "Transaction Growth",
+              score: components.transaction_growth || 0,
+              color: getColorForScore(components.transaction_growth),
+            },
+            {
+              name: "Amount Entropy",
+              score: components.amount_entropy || 0,
+              color: getColorForScore(components.amount_entropy),
+            },
+          ];
+
+          setScoreFactors(formattedFactors);
+        } else {
+          // If not in Firestore, call our Flask API directly
+          const response = await fetch(
+            `${API_BASE_URL}/api/user-credit-score/${user.uid}`
+          );
+
+          if (!response.ok) {
+            // If no data yet, use mock data for demo purposes
+            console.log("No credit score found, using mock data");
+            setUserScore(mockCreditScore);
+            setScoreFactors([
+              { name: "Transaction Frequency", score: 85, color: "#00ff7f" },
+              { name: "Payment History", score: 92, color: "#00ff7f" },
+              { name: "Transaction Amount", score: 78, color: "#00cc66" },
+              { name: "Merchant Diversity", score: 65, color: "#ffc107" },
+              { name: "Account Age", score: 45, color: "#ff4500" },
+            ]);
+          } else {
+            const data = await response.json();
+
+            if (data.status === "success") {
+              const creditScoreData = data.credit_score;
+
+              setUserScore({
+                score: creditScoreData.score,
+                level: creditScoreData.level,
+                message: getLevelMessage(creditScoreData.level),
+                lastUpdated:
+                  creditScoreData.last_updated ||
+                  new Date().toISOString().split("T")[0],
+                loanLimit:
+                  creditScoreData.loan_eligibility?.max_loan_amount || 0,
+              });
+
+              // Extract components for display
+              const components = creditScoreData.components || {};
+              const formattedFactors = [
+                {
+                  name: "Transaction Frequency",
+                  score: components.transaction_frequency || 0,
+                  color: getColorForScore(components.transaction_frequency),
+                },
+                {
+                  name: "Credit-Debit Ratio",
+                  score: components.credit_debit_ratio || 0,
+                  color: getColorForScore(components.credit_debit_ratio),
+                },
+                {
+                  name: "Merchant Diversity",
+                  score: components.merchant_type_diversity || 0,
+                  color: getColorForScore(components.merchant_type_diversity),
+                },
+                {
+                  name: "Transaction Growth",
+                  score: components.transaction_growth || 0,
+                  color: getColorForScore(components.transaction_growth),
+                },
+                {
+                  name: "Amount Entropy",
+                  score: components.amount_entropy || 0,
+                  color: getColorForScore(components.amount_entropy),
+                },
+              ];
+
+              setScoreFactors(formattedFactors);
+            } else {
+              throw new Error(data.error || "Failed to fetch credit score");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching credit score:", err);
+        setError(err.message);
+
+        // For demo, fallback to mock data if API fails
+        setUserScore(mockCreditScore);
+        setScoreFactors([
+          { name: "Transaction Frequency", score: 85, color: "#00ff7f" },
+          { name: "Payment History", score: 92, color: "#00ff7f" },
+          { name: "Transaction Amount", score: 78, color: "#00cc66" },
+          { name: "Merchant Diversity", score: 65, color: "#ffc107" },
+          { name: "Account Age", score: 45, color: "#ff4500" },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCreditScore();
+  }, [auth]);
+
+  // Helper functions
+  const getColorForScore = (score) => {
+    if (score >= 90) return "#00ff7f"; // Excellent
+    if (score >= 70) return "#00cc66"; // Good
+    if (score >= 50) return "#ffc107"; // Average
+    if (score >= 30) return "#ff9800"; // Poor
+    return "#ff4500"; // Very Poor
+  };
+
+  const getLevelMessage = (level) => {
+    switch (level) {
+      case "Excellent":
+        return "You have an excellent credit score with top-tier loan eligibility.";
+      case "Very Good":
+        return "You have a very good credit score with favorable loan terms.";
+      case "Good":
+        return "You have a good credit score with room for improvement.";
+      case "Fair":
+        return "You have a fair credit score. Regular UPI usage can help improve it.";
+      case "Poor":
+        return "Your credit score needs improvement. Follow our tips to increase it.";
+      default:
+        return "Your credit score can be improved with consistent UPI usage.";
+    }
+  };
 
   const scoreChartData = {
     datasets: [
@@ -106,6 +276,17 @@ const CreditScore = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <p>Error loading credit score: {error}</p>
+          <p className="mt-2">Using sample data for demonstration.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-primary mb-6">
@@ -136,9 +317,10 @@ const CreditScore = () => {
                 <p className="text-sm text-text-muted">
                   {userScore?.level === "Excellent"
                     ? "You have access to the highest loan amounts and lowest interest rates."
-                    : userScore?.level === "Good"
+                    : userScore?.level === "Good" ||
+                      userScore?.level === "Very Good"
                     ? "You have access to competitive loan offers with favorable terms."
-                    : userScore?.level === "Average"
+                    : userScore?.level === "Fair"
                     ? "You qualify for standard loan offers with standard interest rates."
                     : "You have limited loan options. Improve your score by using UPI more frequently."}
                 </p>
@@ -177,7 +359,7 @@ const CreditScore = () => {
               </li>
               <li className="flex items-start">
                 <span className="text-primary mr-2">•</span>
-                <span>Refer friends to boost your score instantly</span>
+                <span>Upload your recent UPI transaction history</span>
               </li>
             </ul>
           </div>
@@ -198,46 +380,13 @@ const CreditScore = () => {
 
           <div className="bg-secondary p-4 rounded-lg">
             <h3 className="font-bold text-primary mb-2">Factors We Consider</h3>
-            <ul className="space-y-2 text-sm text-text-muted">
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>
-                  <b>Transaction Frequency:</b> How often you use UPI for
-                  payments
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>
-                  <b>Payment History:</b> Your record of timely payments
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>
-                  <b>Transaction Amount:</b> The value of your transactions
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>
-                  <b>Merchant Diversity:</b> The variety of merchants you
-                  transact with
-                </span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>
-                  <b>Account Age:</b> How long you've been using UPI
-                </span>
-              </li>
-            </ul>
+            <p className="text-sm text-text-muted">
+              Our model analyzes transaction frequency, merchant diversity,
+              credit-debit ratio, transaction growth, and spending patterns.
+              Unlike traditional credit scores that require extensive credit
+              history, our algorithm works with just your UPI transaction data.
+            </p>
           </div>
-
-          <p className="text-text-muted text-sm">
-            Note: FinUPI only has read-only access to your UPI transaction
-            history. Your data is encrypted and never shared with third parties.
-          </p>
         </div>
       </div>
     </div>

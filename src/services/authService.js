@@ -1,0 +1,119 @@
+/**
+ * Authentication Service
+ * Provides a unified interface for authentication regardless of environment
+ */
+
+import * as dummyAuth from "../utils/dummyAuth";
+import { auth, app } from "../firebase";
+import { signInWithPhoneNumber } from "firebase/auth";
+
+// Check if we should use dummy authentication
+// This can be controlled via environment variable or local storage for easy toggling
+const USE_DUMMY_AUTH =
+  process.env.REACT_APP_USE_DUMMY_AUTH === "true" ||
+  localStorage.getItem("useDummyAuth") === "true" ||
+  process.env.NODE_ENV === "development";
+
+/**
+ * Send OTP code to provided phone number
+ * @param {string} phoneNumber - Phone number to send OTP to
+ * @returns {Promise} - Promise with confirmation result
+ */
+export const sendOtpCode = async (phoneNumber) => {
+  if (USE_DUMMY_AUTH) {
+    return dummyAuth.sendOtpCode(phoneNumber);
+  }
+
+  try {
+    // Firebase phone auth implementation
+    const appVerifier = window.recaptchaVerifier;
+    const confirmationResult = await signInWithPhoneNumber(
+      auth,
+      phoneNumber,
+      appVerifier
+    );
+    return confirmationResult;
+  } catch (error) {
+    console.error("Error sending OTP:", error);
+    throw error;
+  }
+};
+
+/**
+ * Verify OTP code
+ * @param {object} confirmationResult - Confirmation result from sendOtpCode
+ * @param {string} otpCode - OTP code entered by user
+ * @returns {Promise} - Promise with user information
+ */
+export const verifyOtp = async (confirmationResult, otpCode) => {
+  if (USE_DUMMY_AUTH) {
+    return dummyAuth.verifyOtp(confirmationResult.verificationId, otpCode);
+  }
+
+  try {
+    // Firebase implementation - confirm the verification code
+    const result = await confirmationResult.confirm(otpCode);
+    return result;
+  } catch (error) {
+    console.error("Error verifying OTP:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get current authenticated user
+ * @returns {object|null} - Current user or null if not authenticated
+ */
+export const getCurrentUser = () => {
+  if (USE_DUMMY_AUTH) {
+    return dummyAuth.getCurrentUser();
+  }
+
+  return auth.currentUser;
+};
+
+/**
+ * Sign out current user
+ * @returns {Promise} - Promise that resolves when sign out is complete
+ */
+export const signOut = async () => {
+  if (USE_DUMMY_AUTH) {
+    return dummyAuth.signOut();
+  }
+
+  try {
+    await auth.signOut();
+  } catch (error) {
+    console.error("Error signing out:", error);
+    throw error;
+  }
+};
+
+/**
+ * Subscribe to authentication state changes
+ * @param {Function} callback - Function to call when auth state changes
+ * @returns {Function} - Unsubscribe function
+ */
+export const onAuthStateChanged = (callback) => {
+  if (USE_DUMMY_AUTH) {
+    return dummyAuth.onAuthStateChanged(callback);
+  }
+
+  return auth.onAuthStateChanged(callback);
+};
+
+/**
+ * Toggle between dummy auth and real auth
+ * @param {boolean} useDummy - Whether to use dummy auth
+ */
+export const toggleDummyAuth = (useDummy) => {
+  localStorage.setItem("useDummyAuth", useDummy ? "true" : "false");
+  // Force reload to apply the change
+  window.location.reload();
+};
+
+// Export the dummy OTP for development UI helpers
+export const DUMMY_OTP = dummyAuth.DUMMY_OTP;
+
+// Export whether dummy auth is active
+export const isDummyAuthActive = USE_DUMMY_AUTH;

@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { auth } from "../firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
+import { sendOtpCode, DUMMY_OTP } from "../utils/dummyAuth";
+import { verifyOtp as verifyOtpService } from "../services/authService";
+
+// Check if app is in development mode
+const isDevelopment = process.env.NODE_ENV === "development";
+// For testing, you can force use of dummy auth even in production
+const forceDummyAuth = true;
+// Whether to use dummy auth
+const useDummyAuth = isDevelopment || forceDummyAuth;
 
 const Login = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -10,9 +19,19 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [recaptchaVerified, setRecaptchaVerified] = useState(false);
+  const [isDummyMode, setIsDummyMode] = useState(useDummyAuth);
 
   // Clear any existing recaptcha when component mounts or unmounts
   useEffect(() => {
+    // Skip recaptcha setup in dummy mode
+    if (isDummyMode) {
+      console.log(
+        "🔑 Using DUMMY AUTH mode. No real authentication will be used."
+      );
+      console.log(`🔑 The dummy OTP is: ${DUMMY_OTP}`);
+      return;
+    }
+
     // Clean up recaptcha when component unmounts
     return () => {
       if (window.recaptchaVerifier) {
@@ -20,9 +39,12 @@ const Login = () => {
         window.recaptchaVerifier = null;
       }
     };
-  }, []);
+  }, [isDummyMode]);
 
   const setupRecaptcha = () => {
+    // Skip recaptcha in dummy mode
+    if (isDummyMode) return;
+
     // Clear any existing recaptcha to avoid duplicates
     if (window.recaptchaVerifier) {
       window.recaptchaVerifier.clear();
@@ -74,9 +96,6 @@ const Login = () => {
     }
 
     try {
-      // Setup recaptcha
-      setupRecaptcha();
-
       // Format phone number to ensure it has country code
       let formattedNumber = phoneNumber.trim();
       if (!formattedNumber.startsWith("+")) {
@@ -93,16 +112,30 @@ const Login = () => {
 
       console.log("Sending OTP to:", formattedNumber);
 
-      // Send OTP
-      const confirmation = await signInWithPhoneNumber(
-        auth,
-        formattedNumber,
-        window.recaptchaVerifier
-      );
+      let confirmation;
+      if (isDummyMode) {
+        // Use dummy authentication
+        confirmation = await sendOtpCode(formattedNumber);
+      } else {
+        // Setup recaptcha for real Firebase auth
+        setupRecaptcha();
+
+        // Send OTP via Firebase
+        confirmation = await signInWithPhoneNumber(
+          auth,
+          formattedNumber,
+          window.recaptchaVerifier
+        );
+      }
 
       setConfirmationResult(confirmation);
       setShowOtpInput(true);
       setLoading(false);
+
+      // Auto-fill OTP in development mode
+      if (isDummyMode) {
+        setOtp(DUMMY_OTP);
+      }
     } catch (err) {
       console.error("OTP Error:", err);
       let errorMessage = "Failed to send OTP. Please try again.";
@@ -124,7 +157,7 @@ const Login = () => {
       setLoading(false);
 
       // Reset recaptcha on error
-      if (window.recaptchaVerifier) {
+      if (!isDummyMode && window.recaptchaVerifier) {
         window.recaptchaVerifier.clear();
       }
     }
@@ -143,8 +176,8 @@ const Login = () => {
     }
 
     try {
-      // Verify OTP
-      await confirmationResult.confirm(otp);
+      // Use the auth service for verification regardless of mode
+      await verifyOtpService(confirmationResult, otp);
       // Auth state will change and App.js will redirect to dashboard
     } catch (err) {
       console.error("OTP Verification Error:", err);
@@ -168,6 +201,17 @@ const Login = () => {
     setShowOtpInput(false);
     setOtp("");
     setError("");
+    if (!isDummyMode && window.recaptchaVerifier) {
+      window.recaptchaVerifier.clear();
+    }
+  };
+
+  // Toggle between real auth and dummy auth (for development)
+  const toggleAuthMode = () => {
+    setIsDummyMode(!isDummyMode);
+    setShowOtpInput(false);
+    setOtp("");
+    setError("");
     if (window.recaptchaVerifier) {
       window.recaptchaVerifier.clear();
     }
@@ -179,6 +223,24 @@ const Login = () => {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-primary mb-2">FinUPI</h1>
           <p className="text-text-muted">Instant Microloans for Everyone</p>
+
+          {useDummyAuth && (
+            <div className="mt-2 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 p-2 rounded">
+              {isDummyMode ? (
+                <span>
+                  DEVELOPMENT MODE: Using dummy authentication (OTP: {DUMMY_OTP}
+                  )
+                </span>
+              ) : (
+                <span>
+                  DEVELOPMENT MODE: Using real Firebase authentication
+                </span>
+              )}
+              <button onClick={toggleAuthMode} className="ml-2 underline">
+                Toggle
+              </button>
+            </div>
+          )}
         </div>
 
         {!showOtpInput ? (
@@ -197,7 +259,9 @@ const Login = () => {
                 required
               />
               <p className="text-sm text-text-muted mt-2">
-                We'll send you a one-time password to verify your phone
+                {isDummyMode
+                  ? "Using dummy authentication. Any valid phone number will work."
+                  : "We'll send you a one-time password to verify your phone"}
               </p>
             </div>
 
@@ -234,7 +298,9 @@ const Login = () => {
                 required
               />
               <p className="text-sm text-text-muted mt-2">
-                OTP sent to {phoneNumber}
+                {isDummyMode
+                  ? `OTP sent to ${phoneNumber} (Use ${DUMMY_OTP} to login)`
+                  : `OTP sent to ${phoneNumber}`}
               </p>
             </div>
 
@@ -248,11 +314,10 @@ const Login = () => {
 
             <button
               type="button"
-              className="btn-secondary w-full"
+              className="btn-text w-full"
               onClick={handleTryAgain}
-              disabled={loading}
             >
-              Try Again
+              Try Different Number
             </button>
 
             {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
