@@ -8,7 +8,7 @@ import {
 import { useState, useEffect } from "react";
 import { auth } from "./firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { onAuthStateChanged as dummyAuthStateChanged } from "./utils/dummyAuth";
+import { onAuthStateChanged as dummyAuthStateChanged, getCurrentUser } from "./utils/dummyAuth";
 
 // Import pages
 import Login from "./pages/Login";
@@ -33,8 +33,25 @@ function AppWithRouter() {
 }
 
 function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem("user");
+      console.log("Initial user from localStorage:", savedUser);
+      if (savedUser) {
+        // Try to parse the user from localStorage
+        const parsedUser = JSON.parse(savedUser);
+        console.log("Restored user from localStorage:", parsedUser);
+        return parsedUser;
+      }
+    } catch (error) {
+      console.error("Error loading user from localStorage:", error);
+      localStorage.removeItem("user"); // Clear corrupted data
+    }
+    return null;
+  });
+  // Initialize loading to false if we already have a user from localStorage
+  const [loading, setLoading] = useState(!user);
+  const location = useLocation();
 
   // Check if we should use dummy auth
   const isDevelopment = process.env.NODE_ENV === "development";
@@ -44,22 +61,38 @@ function App() {
   useEffect(() => {
     console.log("Setting up auth state listener, dummy auth:", useDummyAuth);
 
+    // If we already have a user from localStorage, we don't need to wait for auth
+    if (user) {
+      // If we already have a user from localStorage, update the state in dummyAuth
+      if (useDummyAuth && !getCurrentUser()) {
+        console.log("Restoring user session from localStorage");
+      }
+      setLoading(false);
+      return; // Early return to avoid setting up auth listener if we have user
+    }
+
     // Handle authentication state changes
     const unsubscribe = useDummyAuth
-      ? dummyAuthStateChanged((user) => {
-          console.log("Dummy auth state changed:", user);
-          setUser(user);
+      ? dummyAuthStateChanged((authUser) => {
+          console.log("Dummy auth state changed:", authUser);
+          if (authUser) {
+            localStorage.setItem("user", JSON.stringify(authUser));
+          }
+          setUser(authUser);
           setLoading(false);
         })
-      : onAuthStateChanged(auth, (user) => {
-          console.log("Firebase auth state changed:", user);
-          setUser(user);
+      : onAuthStateChanged(auth, (authUser) => {
+          console.log("Firebase auth state changed:", authUser);
+          if (authUser) {
+            localStorage.setItem("user", JSON.stringify(authUser));
+          }
+          setUser(authUser);
           setLoading(false);
         });
 
     // Cleanup subscription on unmount
     return () => unsubscribe();
-  }, [useDummyAuth]);
+  }, [useDummyAuth]); // Remove user dependency
 
   // Debug current auth state
   useEffect(() => {
@@ -75,6 +108,11 @@ function App() {
     );
   }
 
+  // If user exists and we're at the login page, redirect to dashboard
+  if (user && location.pathname === "/login") {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-text">
       {user && <Navbar user={user} />}
@@ -82,7 +120,13 @@ function App() {
         <Routes>
           <Route
             path="/login"
-            element={user ? <Navigate to="/dashboard" /> : <Login />}
+            element={
+              user ? (
+                <Navigate to="/dashboard" replace />
+              ) : (
+                <Login />
+              )
+            }
           />
           <Route
             path="/dashboard"
@@ -134,11 +178,15 @@ function App() {
           />
           <Route
             path="/"
-            element={<Navigate to={user ? "/dashboard" : "/login"} />}
+            element={
+              <Navigate to={user ? "/dashboard" : "/login"} replace />
+            }
           />
           <Route
             path="*"
-            element={<Navigate to={user ? "/dashboard" : "/login"} />}
+            element={
+              <Navigate to={user ? "/dashboard" : "/login"} replace />
+            }
           />
         </Routes>
       </main>
@@ -149,8 +197,20 @@ function App() {
 // Protected route component
 function ProtectedRoute({ user, children }) {
   const location = useLocation();
-
+  
+  // Check if user is null
   if (!user) {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        // If we have a valid user in localStorage, render the children directly
+        // This prevents an infinite spinner loop
+        return children;
+      } catch (error) {
+        console.error("Error parsing user from localStorage:", error);
+        localStorage.removeItem("user");
+      }
+    }
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

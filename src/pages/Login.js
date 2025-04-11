@@ -3,6 +3,8 @@ import { auth } from "../firebase";
 import { RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { sendOtpCode, DUMMY_OTP } from "../utils/dummyAuth";
 import { verifyOtp as verifyOtpService } from "../services/authService";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 // Check if app is in development mode
 const isDevelopment = process.env.NODE_ENV === "development";
@@ -20,6 +22,8 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [recaptchaVerified, setRecaptchaVerified] = useState(false);
   const [isDummyMode, setIsDummyMode] = useState(useDummyAuth);
+
+  const navigate = useNavigate();
 
   // Clear any existing recaptcha when component mounts or unmounts
   useEffect(() => {
@@ -167,18 +171,25 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError("");
-
-    // Validate OTP
+    
     if (!otp || otp.length !== 6 || !/^\d+$/.test(otp)) {
       setError("Please enter a valid 6-digit OTP");
       setLoading(false);
       return;
     }
-
+    
     try {
-      // Use the auth service for verification regardless of mode
+      
+      // If not using dummy auth or OTP doesn't match dummy code
+      // Use the auth service for verification
       await verifyOtpService(confirmationResult, otp);
-      // Auth state will change and App.js will redirect to dashboard
+      
+      // Store user data and navigate on successful verification
+      localStorage.setItem("user", JSON.stringify({
+        user: phoneNumber,
+      }));
+      setLoading(false);
+      navigate("/dashboard");
     } catch (err) {
       console.error("OTP Verification Error:", err);
 

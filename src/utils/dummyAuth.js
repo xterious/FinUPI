@@ -68,6 +68,7 @@ const verifyOtp = async (verificationId, otpCode) => {
   };
 
   console.log(`[DUMMY AUTH] User authenticated:`, currentUser);
+  localStorage.setItem("user", JSON.stringify(currentUser));
 
   // Notify listeners
   notifyAuthStateChange(currentUser);
