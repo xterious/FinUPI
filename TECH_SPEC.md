@@ -51,10 +51,60 @@ FinUPI is built using a client-side rendering architecture with React.js and Fir
 
 ### 2.3 UI/UX Design
 
-- **Color Scheme**: Neon green (#00ff7f) and black (#000000) theme
-- **Typography**: Inter font family
-- **Components**: Custom card, button, and input components with consistent styling
-- **Responsive Design**: Mobile-first approach with desktop optimization
+- **Color Scheme**:
+
+  - Primary: Electric Blue (#2B6CB0) with gradient variations
+  - Secondary: Cyber Green (#00FF9D) for highlights and CTAs
+  - Accent: Neon Purple (#9F7AEA) for interactive elements
+  - Background: Dark Navy (#0F172A) for main surfaces
+  - Surface: Deep Space (#1E293B) for cards and components
+  - Text:
+    - Primary: White (#FFFFFF)
+    - Secondary: Light Gray (#CBD5E1)
+    - Accent: Electric Blue (#2B6CB0)
+
+- **Gradients**:
+
+  - Primary Gradient: Electric Blue (#2B6CB0) → Cyber Green (#00FF9D)
+  - Secondary Gradient: Neon Purple (#9F7AEA) → Electric Blue (#2B6CB0)
+  - Background Gradient: Dark Navy (#0F172A) → Deep Space (#1E293B)
+
+- **Typography**:
+
+  - Primary: Space Grotesk (Modern, geometric sans-serif)
+  - Secondary: Inter (Clean, readable sans-serif)
+  - Display: Clash Display (For hero sections and headlines)
+
+- **Components**:
+
+  - Glassmorphism effects for cards and modals
+  - Subtle particle animations in background
+  - Dynamic hover states with gradient transitions
+  - Floating elements with micro-interactions
+  - Custom scrollbars with gradient tracks
+
+- **Responsive Design**:
+
+  - Mobile-first approach with desktop optimization
+  - Adaptive layouts that respond to screen size
+  - Fluid typography scaling
+  - Dynamic grid systems
+  - Breakpoints optimized for modern devices
+
+- **Animations & Interactions**:
+
+  - Smooth page transitions
+  - Loading states with animated gradients
+  - Hover effects with subtle scaling and color shifts
+  - Progress indicators with gradient fills
+  - Micro-interactions for user feedback
+
+- **Accessibility**:
+  - WCAG 2.1 AA compliance
+  - High contrast ratios for text
+  - Keyboard navigation support
+  - Screen reader optimization
+  - Reduced motion options
 
 ## 3. Backend Architecture
 
