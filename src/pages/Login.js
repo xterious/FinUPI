@@ -148,7 +148,12 @@ const Login = () => {
         }
         
         // Use the auth service
-        confirmation = await sendOtpCode(formattedNumber);
+        try {
+          confirmation = await sendOtpCode(formattedNumber);
+          localStorage.setItem("user",JSON.stringify(confirmation.user));
+        } catch (error) {
+          console.error("Error sending OTP:", error);
+        }
       }
       
       console.log("OTP sent successfully, confirmation result:", confirmation);

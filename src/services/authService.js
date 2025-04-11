@@ -42,6 +42,7 @@ export const sendOtpCode = async (phoneNumber) => {
       phoneNumber,
       appVerifier
     );
+    
     return confirmationResult;
   } catch (error) {
     console.error("Error sending OTP:", error);
