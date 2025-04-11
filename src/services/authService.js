@@ -4,7 +4,7 @@
  */
 
 import * as dummyAuth from "../utils/dummyAuth";
-import { auth, app } from "../firebase";
+import { auth } from "../firebase";
 import { signInWithPhoneNumber } from "firebase/auth";
 
 // Check if we should use dummy authentication
@@ -21,12 +21,21 @@ const USE_DUMMY_AUTH =
  */
 export const sendOtpCode = async (phoneNumber) => {
   if (USE_DUMMY_AUTH) {
+    console.log("Using dummy auth for sendOtpCode");
     return dummyAuth.sendOtpCode(phoneNumber);
   }
 
   try {
-    // Firebase phone auth implementation
+    console.log("Using Firebase auth for sendOtpCode");
+    // Make sure recaptchaVerifier is available
+    if (!window.recaptchaVerifier) {
+      throw new Error("reCAPTCHA verifier not initialized");
+    }
+    
     const appVerifier = window.recaptchaVerifier;
+    console.log("Using verifier:", appVerifier);
+    
+    // Firebase phone auth implementation
     const confirmationResult = await signInWithPhoneNumber(
       auth,
       phoneNumber,
@@ -47,10 +56,12 @@ export const sendOtpCode = async (phoneNumber) => {
  */
 export const verifyOtp = async (confirmationResult, otpCode) => {
   if (USE_DUMMY_AUTH) {
+    console.log("Using dummy auth for verifyOtp");
     return dummyAuth.verifyOtp(confirmationResult.verificationId, otpCode);
   }
 
   try {
+    console.log("Using Firebase auth for verifyOtp");
     // Firebase implementation - confirm the verification code
     const result = await confirmationResult.confirm(otpCode);
     return result;
