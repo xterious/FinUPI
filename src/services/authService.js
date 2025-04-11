@@ -8,11 +8,12 @@ import { auth } from "../firebase";
 import { signInWithPhoneNumber } from "firebase/auth";
 
 // Check if we should use dummy authentication
-// This can be controlled via environment variable or local storage for easy toggling
-const USE_DUMMY_AUTH =
-  process.env.REACT_APP_USE_DUMMY_AUTH === "true" ||
-  localStorage.getItem("useDummyAuth") === "true" ||
-  process.env.NODE_ENV === "development";
+// Local storage takes precedence over environment settings
+const isDevelopment = process.env.NODE_ENV === "development";
+const localStorageSetting = localStorage.getItem("useDummyAuth");
+const USE_DUMMY_AUTH = 
+  localStorageSetting === "true" || 
+  (localStorageSetting !== "false" && isDevelopment);
 
 /**
  * Send OTP code to provided phone number
@@ -118,6 +119,7 @@ export const onAuthStateChanged = (callback) => {
  * @param {boolean} useDummy - Whether to use dummy auth
  */
 export const toggleDummyAuth = (useDummy) => {
+  console.log("Toggling dummy auth to:", useDummy);
   localStorage.setItem("useDummyAuth", useDummy ? "true" : "false");
   // Force reload to apply the change
   window.location.reload();

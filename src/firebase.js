@@ -3,10 +3,12 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import * as dummyAuth from "./utils/dummyAuth";
 
-// Check if we should use dummy auth
+// Check if we should use dummy auth - consistent with authService.js
 const isDevelopment = process.env.NODE_ENV === "development";
-const forceDummyAuth = true; // Set to false in production
-const useDummyAuth = isDevelopment || forceDummyAuth || localStorage.getItem("useDummyAuth") === "true";
+const localStorageSetting = localStorage.getItem("useDummyAuth");
+const useDummyAuth = 
+  localStorageSetting === "true" || 
+  (localStorageSetting !== "false" && isDevelopment);
 
 // Your web app's Firebase configuration
 // For the hackathon, you would replace these with your actual Firebase config

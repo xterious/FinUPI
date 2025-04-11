@@ -5,7 +5,8 @@ import { DUMMY_OTP } from "../utils/dummyAuth";
 import { 
   sendOtpCode, 
   verifyOtp, 
-  isDummyAuthActive 
+  isDummyAuthActive,
+  toggleDummyAuth as serviceToggleDummyAuth
 } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 
@@ -50,7 +51,7 @@ const Login = () => {
 
   const setupRecaptcha = () => {
     // Skip recaptcha in dummy mode
-    if (isDummyMode) return;
+    if (isDummyMode) return true;
 
     try {
       // Clear any existing recaptcha to avoid duplicates
@@ -63,44 +64,34 @@ const Login = () => {
         window.recaptchaVerifier = null;
       }
 
-      // Create new RecaptchaVerifier with explicit auth instance
-      window.recaptchaVerifier = new RecaptchaVerifier(
-        "recaptcha-container",
-        {
-          size: "invisible",
-          callback: () => {
-            // reCAPTCHA solved, allow signInWithPhoneNumber
-            setRecaptchaVerified(true);
-          },
-          "expired-callback": () => {
-            // Reset recaptcha when expired
-            setRecaptchaVerified(false);
-            setError("reCAPTCHA expired. Please try again.");
-            if (window.recaptchaVerifier) {
-              try {
-                window.recaptchaVerifier.clear();
-              } catch (err) {
-                console.error("Error clearing recaptcha:", err);
-              }
-            }
-          },
-        },
-        auth // Pass auth explicitly
-      );
+      // Make sure we have a container for the recaptcha
+      const container = document.getElementById("recaptcha-container");
+      if (!container) {
+        console.error("Recaptcha container not found");
+        throw new Error("Recaptcha container not found");
+      }
 
-      // Render the recaptcha
-      window.recaptchaVerifier.render()
-        .then((widgetId) => {
-          window.recaptchaWidgetId = widgetId;
-          console.log("RecaptchaVerifier rendered successfully");
-        })
-        .catch(err => {
-          console.error("Failed to render recaptcha:", err);
-          setError("Failed to initialize security verification. Please try again.");
-        });
+      console.log("Creating RecaptchaVerifier with auth:", auth);
+      
+      // Create new RecaptchaVerifier with a simplified approach
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, container, {
+        size: "invisible",
+        callback: () => {
+          console.log("reCAPTCHA verified successfully");
+          setRecaptchaVerified(true);
+        },
+        "expired-callback": () => {
+          console.log("reCAPTCHA expired");
+          setRecaptchaVerified(false);
+          setError("reCAPTCHA expired. Please try again.");
+        },
+      });
+      
+      return true;
     } catch (err) {
       console.error("Error setting up RecaptchaVerifier:", err);
       setError("Failed to initialize reCAPTCHA. Please try again later.");
+      return false;
     }
   };
 
@@ -141,20 +132,25 @@ const Login = () => {
       console.log("Sending OTP to:", formattedNumber);
       console.log("Using dummy mode:", isDummyMode);
 
-      // Set up recaptcha only for non-dummy mode
-      if (!isDummyMode) {
+      // Handle different authentication methods
+      let confirmation;
+      
+      if (isDummyMode) {
+        // Use dummy authentication
+        confirmation = await sendOtpCode(formattedNumber);
+      } else {
+        // For real Firebase auth, set up recaptcha first
         console.log("Setting up recaptcha before sending OTP");
-        setupRecaptcha();
+        const recaptchaSetup = setupRecaptcha();
         
-        // Make sure recaptcha is initialized
-        if (!window.recaptchaVerifier) {
-          throw new Error("Failed to initialize reCAPTCHA");
+        if (!recaptchaSetup) {
+          throw new Error("Failed to set up reCAPTCHA");
         }
+        
+        // Use the auth service
+        confirmation = await sendOtpCode(formattedNumber);
       }
-
-      // Use unified auth service
-      console.log("Calling sendOtpCode service");
-      const confirmation = await sendOtpCode(formattedNumber);
+      
       console.log("OTP sent successfully, confirmation result:", confirmation);
       
       setConfirmationResult(confirmation);
@@ -251,7 +247,7 @@ const Login = () => {
     }
   };
 
-  // Toggle between real auth and dummy auth (for development)
+  // Toggle between real auth and dummy auth
   const toggleAuthMode = () => {
     // Clean up before switching modes
     if (window.recaptchaVerifier) {
@@ -265,19 +261,12 @@ const Login = () => {
     
     // Toggle the mode
     const newMode = !isDummyMode;
-    setIsDummyMode(newMode);
+    console.log(`Toggling auth mode to: ${newMode ? 'dummy' : 'production'}`);
     
-    // Save the preference in localStorage
-    localStorage.setItem("useDummyAuth", newMode ? "true" : "false");
+    // Use the service to toggle
+    serviceToggleDummyAuth(newMode);
     
-    // Reset UI state
-    setShowOtpInput(false);
-    setOtp("");
-    setError("");
-    setConfirmationResult(null);
-    
-    // Reload the page to ensure all auth systems are properly initialized
-    window.location.reload();
+    // The page will reload due to the service implementation
   };
 
   return (
@@ -287,18 +276,16 @@ const Login = () => {
           <h1 className="text-3xl font-bold text-primary mb-2">FinUPI</h1>
           <p className="text-text-muted">Instant Microloans for Everyone</p>
 
-          {isDevelopment && (
-            <div className="mt-2 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 p-2 rounded">
-              <span>
-                {isDummyMode 
-                  ? `DEVELOPMENT MODE: Using dummy authentication (OTP: ${DUMMY_OTP})`
-                  : "Using real Firebase authentication"}
-              </span>
-              <button onClick={toggleAuthMode} className="ml-2 underline">
-                Toggle to {isDummyMode ? "real" : "dummy"} auth
-              </button>
-            </div>
-          )}
+          <div className="mt-2 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200 p-2 rounded">
+            <span>
+              {isDummyMode 
+                ? `Using development mode (Test OTP: ${DUMMY_OTP})`
+                : "Using production mode with real phone verification"}
+            </span>
+            <button onClick={toggleAuthMode} className="ml-2 underline">
+              Switch to {isDummyMode ? "production" : "development"}
+            </button>
+          </div>
         </div>
 
         {!showOtpInput ? (
@@ -318,7 +305,7 @@ const Login = () => {
               />
               <p className="text-sm text-text-muted mt-2">
                 {isDummyMode
-                  ? "Using dummy authentication. Any valid phone number will work."
+                  ? "Using development mode. Any valid phone number will work."
                   : "We'll send you a one-time password to verify your phone"}
               </p>
             </div>
@@ -333,7 +320,7 @@ const Login = () => {
 
             {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
 
-            {/* This div is used by Firebase for reCAPTCHA rendering */}
+            {/* This div is used for reCAPTCHA rendering - needs to be visible */}
             <div
               id="recaptcha-container"
               className="mt-4 flex justify-center"
