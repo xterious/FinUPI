@@ -9,403 +9,20 @@ import axios from "axios";
 import { mockTransactions, mockCreditScore, mockLoanOffers } from "../mockData";
 
 ChartJS.register(ArcElement, Tooltip, Legend);
-const userTransactions1 = {
-  "transactions": [
-    {
-      "Timestamp": "2025-01-01T09:00:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "alice@upi",
-      "Amount (INR)": 1000,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-01T10:00:00",
-      "Sender UPI ID": "alice@upi",
-      "Receiver UPI ID": "bob@upi",
-      "Amount (INR)": 500,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-01T11:00:00",
-      "Sender UPI ID": "bob@upi",
-      "Receiver UPI ID": "charlie@upi",
-      "Amount (INR)": 300,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-01T11:15:00",
-      "Sender UPI ID": "charlie@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 100,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-02T09:30:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "merchant@upi",
-      "Amount (INR)": 250,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2M"
-    },
-    {
-      "Timestamp": "2025-01-02T12:00:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "alice@upi",
-      "Amount (INR)": 300,
-      "Status": "FAILED",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-02T14:00:00",
-      "Sender UPI ID": "alice@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 300,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-03T08:00:00",
-      "Sender UPI ID": "bob@upi",
-      "Receiver UPI ID": "alice@upi",
-      "Amount (INR)": 200,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-03T08:10:00",
-      "Sender UPI ID": "alice@upi",
-      "Receiver UPI ID": "bob@upi",
-      "Amount (INR)": 150,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-03T09:30:00",
-      "Sender UPI ID": "charlie@upi",
-      "Receiver UPI ID": "merchant@upi",
-      "Amount (INR)": 500,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2M"
-    },
-    {
-      "Timestamp": "2025-01-03T10:00:00",
-      "Sender UPI ID": "merchant@upi",
-      "Receiver UPI ID": "bob@upi",
-      "Amount (INR)": 100,
-      "Status": "SUCCESS",
-      "Type": "Refund",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-04T11:00:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "alice@upi",
-      "Amount (INR)": 700,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-04T12:00:00",
-      "Sender UPI ID": "alice@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 700,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-05T08:00:00",
-      "Sender UPI ID": "charlie@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 400,
-      "Status": "SUCCESS",
-      "Type": "Received",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-05T10:30:00",
-      "Sender UPI ID": "bob@upi",
-      "Receiver UPI ID": "merchant@upi",
-      "Amount (INR)": 150,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2M"
-    },
-    {
-      "Timestamp": "2025-01-06T09:15:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "david@upi",
-      "Amount (INR)": 600,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-06T10:00:00",
-      "Sender UPI ID": "david@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 250,
-      "Status": "SUCCESS",
-      "Type": "Received",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-06T10:45:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "charlie@upi",
-      "Amount (INR)": 100,
-      "Status": "PENDING",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-07T09:00:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "bob@upi",
-      "Amount (INR)": 120,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-07T10:30:00",
-      "Sender UPI ID": "bob@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 80,
-      "Status": "SUCCESS",
-      "Type": "Received",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-08T09:00:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "merchant@upi",
-      "Amount (INR)": 999,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2M"
-    },
-    {
-      "Timestamp": "2025-01-08T11:00:00",
-      "Sender UPI ID": "merchant@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 200,
-      "Status": "SUCCESS",
-      "Type": "Refund",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-09T08:00:00",
-      "Sender UPI ID": "david@upi",
-      "Receiver UPI ID": "charlie@upi",
-      "Amount (INR)": 350,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-09T09:30:00",
-      "Sender UPI ID": "charlie@upi",
-      "Receiver UPI ID": "david@upi",
-      "Amount (INR)": 100,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-10T10:00:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 0,
-      "Status": "SUCCESS",
-      "Type": "Self-Transfer",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-10T11:00:00",
-      "Sender UPI ID": "charlie@upi",
-      "Receiver UPI ID": "bob@upi",
-      "Amount (INR)": 100,
-      "Status": "FAILED",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-11T09:00:00",
-      "Sender UPI ID": "alice@upi",
-      "Receiver UPI ID": "charlie@upi",
-      "Amount (INR)": 350,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-11T10:00:00",
-      "Sender UPI ID": "charlie@upi",
-      "Receiver UPI ID": "alice@upi",
-      "Amount (INR)": 250,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-12T09:15:00",
-      "Sender UPI ID": "merchant@upi",
-      "Receiver UPI ID": "david@upi",
-      "Amount (INR)": 500,
-      "Status": "SUCCESS",
-      "Type": "Incentive",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2025-01-12T10:30:00",
-      "Sender UPI ID": "david@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 450,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    }
-  ]
-}
-
-const userTransactions2 = {
-  "transactions": [
-    {
-      "Timestamp": "2024-12-15T10:15:00",
-      "Sender UPI ID": "user@upi",
-      "Receiver UPI ID": "friend@upi",
-      "Amount (INR)": 500,
-      "Status": "SUCCESS",
-      "Type": "Sent",
-      "To Type": "P2P"
-    },
-    {
-      "Timestamp": "2024-12-16T15:25:00",
-      "Sender UPI ID": "friend@upi",
-      "Receiver UPI ID": "user@upi",
-      "Amount (INR)": 1500,
-      "Status": "SUCCESS",
-      "Type": "Received",
-      "To Type": "P2P"
-    }
-  ]
-}
 
 const Dashboard = () => {
+  const userTransactions1 = {
+    "user_id" : 8754512892
+  }
+  
+  const userTransactions2 = {
+    "user_id" : 7001400312
+  }
   const [userScore, setUserScore] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loanOffers, setLoanOffers] = useState([]);
   const [activeLoans, setActiveLoans] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const userTransactions = [
-    {
-      "Transaction ID": "TXN001",
-      "Timestamp": 45757.385671296295,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "Kirana Store",
-      "Receiver UPI ID": "kirana123@upi",
-      "Amount (INR)": 180
-    },
-    {
-      "Transaction ID": "TXN002",
-      "Timestamp": 45756.895949074074,
-      "Sender Name": "Swiggy",
-      "Sender UPI ID": "swiggy@upi",
-      "Receiver Name": "Ramesh",
-      "Receiver UPI ID": "ramesh@upi",
-      "Amount (INR)": 120
-    },
-    {
-      "Transaction ID": "TXN003",
-      "Timestamp": 45756.54568287037,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "Auto Driver",
-      "Receiver UPI ID": "auto@upi",
-      "Amount (INR)": 60
-    },
-    {
-      "Transaction ID": "TXN004",
-      "Timestamp": 45755.36125,
-      "Sender Name": "Office",
-      "Sender UPI ID": "salary@upi",
-      "Receiver Name": "Ramesh",
-      "Receiver UPI ID": "ramesh@upi",
-      "Amount (INR)": 11000
-    },
-    {
-      "Transaction ID": "TXN005",
-      "Timestamp": 45754.8059375,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "Netflix",
-      "Receiver UPI ID": "netflix@upi",
-      "Amount (INR)": 199
-    },
-    {
-      "Transaction ID": "TXN006",
-      "Timestamp": 45753.78158564815,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "Zomato",
-      "Receiver UPI ID": "zomato@upi",
-      "Amount (INR)": 240
-    },
-    {
-      "Transaction ID": "TXN007",
-      "Timestamp": 45753.43817129629,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "UPI Transfer",
-      "Receiver UPI ID": "friend123@upi",
-      "Amount (INR)": 500
-    },
-    {
-      "Transaction ID": "TXN008",
-      "Timestamp": 45752.84045138889,
-      "Sender Name": "Friend",
-      "Sender UPI ID": "friend@upi",
-      "Receiver Name": "Ramesh",
-      "Receiver UPI ID": "ramesh@upi",
-      "Amount (INR)": 350
-    },
-    {
-      "Transaction ID": "TXN009",
-      "Timestamp": 45752.33011574074,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "Electricity",
-      "Receiver UPI ID": "tneb@upi",
-      "Amount (INR)": 640
-    },
-    {
-      "Transaction ID": "TXN010",
-      "Timestamp": 45751.50763888889,
-      "Sender Name": "Ramesh",
-      "Sender UPI ID": "ramesh@upi",
-      "Receiver Name": "Amazon Pay",
-      "Receiver UPI ID": "amazon@upi",
-      "Amount (INR)": 299
-    }
-  ]
 
   useEffect(() => {
     // In a real app, fetch this data from Firebase
@@ -430,11 +47,23 @@ const Dashboard = () => {
   //calling api to get credit score
   useEffect(() => {
     const fetchCreditScore = async () => {
-      const response = await axios.post("http://localhost:5000/predict_score", userTransactions2);
-      // const data = await response.json();
-      setUserScore(response.data.credit_score);
-      setTransactions(response.data.last_5_transactions);
-      console.log(response.data.credit_score);
+      try {
+        const response = await axios.post("http://localhost:5000/get_credit_score", userTransactions1);
+        
+        // Update local state
+        setUserScore(response.data.credit_score);
+        setTransactions(response.data.last_5_transactions);
+        
+        // Store credit score data in localStorage
+        localStorage.setItem('creditScore', response.data.credit_score);
+        localStorage.setItem('maxLoanAmount', response.data.loan_eligibility?.max_loan_amount || 5000);
+        localStorage.setItem('maxLoanDuration', response.data.loan_eligibility?.max_duration_months || 12);
+        localStorage.setItem('scoreCategory', response.data.score_category || "Unknown");
+        localStorage.setItem('lastUpdated', new Date().toISOString());
+        
+      } catch (error) {
+        console.error("Error fetching credit score:", error);
+      }
     };
     fetchCreditScore();
   }, []);
@@ -584,16 +213,15 @@ const Dashboard = () => {
                 <th className="py-2 text-left text-text-muted">Receiver</th>
                 <th className="py-2 text-left text-text-muted">Amount</th>
                 <th className="py-2 text-left text-text-muted">Type</th>
-                <th className="py-2 text-left text-text-muted">To Type</th>
               </tr>
             </thead>
             <tbody>
               {transactions.map((tx, index) => (
                 <tr key={index} className="border-b border-secondary">
                   <td className="py-2">{tx.Timestamp}</td>
-                  <td className="py-2">{tx.Sender_UPI_ID}</td>
-                  <td className="py-2">{tx.Receiver_UPI_ID}</td>
-                  <td className="py-2">{tx.Amount}</td>
+                  <td className="py-2">{tx.sender_upi_id}</td>
+                  <td className="py-2">{tx.receiver_upi_id}</td>
+                  <td className="py-2">{tx.amount}</td>
                   <td className="py-2">
                     <span
                       className={`px-2 py-1 rounded text-xs ${tx.Type === "Sent"
@@ -603,7 +231,6 @@ const Dashboard = () => {
                       {tx.Type}
                     </span>
                   </td>
-                  <td className="py-2">{tx.To_Type}</td>
                 </tr>
               ))}
             </tbody>

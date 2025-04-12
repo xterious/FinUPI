@@ -8,13 +8,9 @@ import {
   LinearScale,
   BarElement,
 } from "chart.js";
-import { Doughnut, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 import { getAuth } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
-
-// Mock data (would come from Firebase in production)
-import { mockCreditScore, mockTransactions } from "../mockData";
+import axios from "axios";
 
 ChartJS.register(
   ArcElement,
@@ -25,191 +21,179 @@ ChartJS.register(
   BarElement
 );
 
-// API endpoint base URL - replace with actual API URL in production
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
+// API endpoint base URL
+const API_BASE_URL = "http://localhost:5000";
+
 
 const CreditScore = () => {
+
+  const userTransactions1 = {
+    "user_id" : 8754512892
+  }
+  
+  const userTransactions2 = {
+    "user_id" : 7001400312
+  }
+  
   const [userScore, setUserScore] = useState(null);
-  const [scoreFactors, setScoreFactors] = useState([]);
+  const [message, setMessage] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const auth = getAuth();
 
   useEffect(() => {
     const fetchCreditScore = async () => {
+      console.log("fetchCreditScore function started");
       setLoading(true);
       setError(null);
 
       try {
         // Check if user is authenticated
         const user = auth.currentUser;
+        console.log("Auth check completed. User authenticated:", !!user);
 
-        if (!user) {
-          throw new Error("User not authenticated");
-        }
+        // Skip auth check for now to avoid spinner
+        // if (!user) {
+        //   throw new Error("User not authenticated");
+        // }
 
-        // Try to get credit score from Firestore first
-        const userDoc = await getDoc(doc(db, "users", user.uid));
-
-        if (userDoc.exists() && userDoc.data().creditScore) {
-          // User already has credit score in Firestore
-          const creditScoreData = userDoc.data().creditScore;
-
-          setUserScore({
-            score: creditScoreData.score,
-            level: creditScoreData.level,
-            message: getLevelMessage(creditScoreData.level),
-            lastUpdated:
-              creditScoreData.last_updated ||
-              new Date().toISOString().split("T")[0],
-            loanLimit: creditScoreData.loan_eligibility?.max_loan_amount || 0,
+        // Make API request to get credit score and suggestions
+        console.log("Sending transaction data:", userTransactions1);
+        
+        try {
+          const response = await axios.post("http://localhost:5000/get_credit_score", userTransactions1, {
+            timeout: 10000 // Add 10 second timeout
           });
-
-          // Extract components for display
-          const components = creditScoreData.components || {};
-          const formattedFactors = [
-            {
-              name: "Transaction Frequency",
-              score: components.transaction_frequency || 0,
-              color: getColorForScore(components.transaction_frequency),
-            },
-            {
-              name: "Credit-Debit Ratio",
-              score: components.credit_debit_ratio || 0,
-              color: getColorForScore(components.credit_debit_ratio),
-            },
-            {
-              name: "Merchant Diversity",
-              score: components.merchant_type_diversity || 0,
-              color: getColorForScore(components.merchant_type_diversity),
-            },
-            {
-              name: "Transaction Growth",
-              score: components.transaction_growth || 0,
-              color: getColorForScore(components.transaction_growth),
-            },
-            {
-              name: "Amount Entropy",
-              score: components.amount_entropy || 0,
-              color: getColorForScore(components.amount_entropy),
-            },
-          ];
-
-          setScoreFactors(formattedFactors);
-        } else {
-          // If not in Firestore, call our Flask API directly
-          const response = await fetch(
-            `${API_BASE_URL}/api/user-credit-score/${user.uid}`
-          );
-
-          if (!response.ok) {
-            // If no data yet, use mock data for demo purposes
-            console.log("No credit score found, using mock data");
-            setUserScore(mockCreditScore);
-            setScoreFactors([
-              { name: "Transaction Frequency", score: 85, color: "#00ff7f" },
-              { name: "Payment History", score: 92, color: "#00ff7f" },
-              { name: "Transaction Amount", score: 78, color: "#00cc66" },
-              { name: "Merchant Diversity", score: 65, color: "#ffc107" },
-              { name: "Account Age", score: 45, color: "#ff4500" },
-            ]);
+          console.log("API response received:", response.data);
+          
+          // Set credit score from API response
+          setUserScore({
+            score: response.data.credit_score || 75, // Fallback score
+            level: getScoreLevel(response.data.credit_score || 75),
+            lastUpdated: new Date().toISOString().split("T")[0],
+            loanLimit: calculateLoanLimit(response.data.credit_score || 75),
+          });
+          
+          // Set message from API response
+          setMessage(response.data.improvements?.message || "");
+          
+          // Set suggestions from API response
+          if (response.data.improvements?.suggestions && Array.isArray(response.data.improvements.suggestions)) {
+            setSuggestions(response.data.improvements.suggestions);
           } else {
-            const data = await response.json();
-
-            if (data.status === "success") {
-              const creditScoreData = data.credit_score;
-
-              setUserScore({
-                score: creditScoreData.score,
-                level: creditScoreData.level,
-                message: getLevelMessage(creditScoreData.level),
-                lastUpdated:
-                  creditScoreData.last_updated ||
-                  new Date().toISOString().split("T")[0],
-                loanLimit:
-                  creditScoreData.loan_eligibility?.max_loan_amount || 0,
-              });
-
-              // Extract components for display
-              const components = creditScoreData.components || {};
-              const formattedFactors = [
-                {
-                  name: "Transaction Frequency",
-                  score: components.transaction_frequency || 0,
-                  color: getColorForScore(components.transaction_frequency),
-                },
-                {
-                  name: "Credit-Debit Ratio",
-                  score: components.credit_debit_ratio || 0,
-                  color: getColorForScore(components.credit_debit_ratio),
-                },
-                {
-                  name: "Merchant Diversity",
-                  score: components.merchant_type_diversity || 0,
-                  color: getColorForScore(components.merchant_type_diversity),
-                },
-                {
-                  name: "Transaction Growth",
-                  score: components.transaction_growth || 0,
-                  color: getColorForScore(components.transaction_growth),
-                },
-                {
-                  name: "Amount Entropy",
-                  score: components.amount_entropy || 0,
-                  color: getColorForScore(components.amount_entropy),
-                },
-              ];
-
-              setScoreFactors(formattedFactors);
-            } else {
-              throw new Error(data.error || "Failed to fetch credit score");
-            }
+            // Fallback if suggestions aren't provided by API
+            setSuggestions(getImprovementSuggestions(response.data.credit_score || 75));
           }
+        } catch (apiErr) {
+          console.error("First API call failed, using fallback data", apiErr);
+          // Use default data if API fails
+          setUserScore({
+            score: 75,
+            level: getScoreLevel(75),
+            lastUpdated: new Date().toISOString().split("T")[0],
+            loanLimit: calculateLoanLimit(75),
+          });
+          setSuggestions(getImprovementSuggestions(75));
+          setMessage("Keep making regular UPI payments to improve your score.");
         }
-      } catch (err) {
-        console.error("Error fetching credit score:", err);
-        setError(err.message);
 
-        // For demo, fallback to mock data if API fails
-        setUserScore(mockCreditScore);
-        setScoreFactors([
-          { name: "Transaction Frequency", score: 85, color: "#00ff7f" },
-          { name: "Payment History", score: 92, color: "#00ff7f" },
-          { name: "Transaction Amount", score: 78, color: "#00cc66" },
-          { name: "Merchant Diversity", score: 65, color: "#ffc107" },
-          { name: "Account Age", score: 45, color: "#ff4500" },
-        ]);
+      } catch (err) {
+        console.error("Error in main try block:", err);
+        setError("Failed to fetch credit score. Please try again later.");
+        
+        // Use default data if all else fails
+        setUserScore({
+          score: 70,
+          level: getScoreLevel(70),
+          lastUpdated: new Date().toISOString().split("T")[0],
+          loanLimit: calculateLoanLimit(70),
+        });
+        setSuggestions(getImprovementSuggestions(70));
+        setMessage("Default message: Make regular UPI payments to maintain a good score.");
       } finally {
+        console.log("Setting loading to false in finally block");
         setLoading(false);
       }
     };
 
-    fetchCreditScore();
-  }, [auth]);
+    console.log("Setting up fetchCreditScore call");
+    fetchCreditScore().catch(err => {
+      console.error("Unexpected error in fetchCreditScore:", err);
+      setLoading(false); // Ensure loading is set to false even if fetchCreditScore throws
+    });
+    
+    // Cleanup function for useEffect
+    return () => {
+      console.log("Component unmounting or effect cleanup running");
+    };
+  }, []); // Empty dependency array to run only once
 
   // Helper functions
-  const getColorForScore = (score) => {
-    if (score >= 90) return "#00ff7f"; // Excellent
-    if (score >= 70) return "#00cc66"; // Good
-    if (score >= 50) return "#ffc107"; // Average
-    if (score >= 30) return "#ff9800"; // Poor
-    return "#ff4500"; // Very Poor
+  const getScoreLevel = (score) => {
+    if (score >= 90) return "Excellent";
+    if (score >= 80) return "Very Good";
+    if (score >= 70) return "Good";
+    if (score >= 50) return "Fair";
+    return "Poor";
+  };
+  
+  const calculateLoanLimit = (score) => {
+    // Simple formula to calculate loan limit based on score
+    return Math.round((score / 100) * 50000);
+  };
+  
+  const getScoreMessageAndColor = (score) => {
+    if (score > 80) {
+      return {
+        message: "Whoa that's a great score!",
+        color: "text-green-500"
+      };
+    } else if (score >= 60 && score <= 80) {
+      return {
+        message: "There's a lot of room for improvement!",
+        color: "text-yellow-500"
+      };
+    } else {
+      return {
+        message: "Oops the score is low! Let's improve!",
+        color: "text-red-500"
+      };
+    }
   };
 
-  const getLevelMessage = (level) => {
-    switch (level) {
-      case "Excellent":
-        return "You have an excellent credit score with top-tier loan eligibility.";
-      case "Very Good":
-        return "You have a very good credit score with favorable loan terms.";
-      case "Good":
-        return "You have a good credit score with room for improvement.";
-      case "Fair":
-        return "You have a fair credit score. Regular UPI usage can help improve it.";
-      case "Poor":
-        return "Your credit score needs improvement. Follow our tips to increase it.";
-      default:
-        return "Your credit score can be improved with consistent UPI usage.";
+  const getImprovementSuggestions = (score) => {
+    // Base suggestions for everyone
+    const baseSuggestions = [
+      "Make regular UPI transactions to establish consistent usage patterns",
+      "Ensure on-time repayment of any digital loans or credit facilities",
+      "Use UPI for a variety of merchant payments to show diversity",
+      "Maintain a healthy ratio between money sent and received",
+      "Avoid too many failed transactions or payment reversals"
+    ];
+    
+    // Add specific suggestions based on score ranges
+    if (score < 60) {
+      return [
+        ...baseSuggestions,
+        "Increase your transaction frequency - aim for at least 15-20 transactions per month",
+        "Clear any pending dues or late payments immediately",
+        "Link your primary bank account to UPI for better tracking"
+      ];
+    } else if (score >= 60 && score <= 80) {
+      return [
+        ...baseSuggestions,
+        "Try to increase your transaction volume gradually",
+        "Maintain consistent transaction patterns month-to-month",
+        "Use UPI for bill payments to establish recurring payment history"
+      ];
+    } else {
+      return [
+        ...baseSuggestions,
+        "Continue your excellent payment behavior",
+        "Consider using UPI for more of your financial transactions",
+        "You're doing great! Keep up the good work"
+      ];
     }
   };
 
@@ -222,50 +206,6 @@ const CreditScore = () => {
         cutout: "80%",
       },
     ],
-  };
-
-  const factorsChartData = {
-    labels: scoreFactors.map((factor) => factor.name),
-    datasets: [
-      {
-        label: "Factor Score",
-        data: scoreFactors.map((factor) => factor.score),
-        backgroundColor: scoreFactors.map((factor) => factor.color),
-        borderWidth: 0,
-        borderRadius: 5,
-      },
-    ],
-  };
-
-  const factorsChartOptions = {
-    indexAxis: "y",
-    scales: {
-      x: {
-        beginAtZero: true,
-        max: 100,
-        grid: {
-          color: "rgba(255, 255, 255, 0.1)",
-        },
-        ticks: {
-          color: "#aaaaaa",
-        },
-      },
-      y: {
-        grid: {
-          display: false,
-        },
-        ticks: {
-          color: "#ffffff",
-        },
-      },
-    },
-    plugins: {
-      legend: {
-        display: false,
-      },
-    },
-    responsive: true,
-    maintainAspectRatio: false,
   };
 
   if (loading) {
@@ -281,11 +221,18 @@ const CreditScore = () => {
       <div className="flex items-center justify-center h-full">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
           <p>Error loading credit score: {error}</p>
-          <p className="mt-2">Using sample data for demonstration.</p>
+          <button 
+            className="mt-2 bg-red-200 hover:bg-red-300 text-red-700 font-bold py-1 px-4 rounded"
+            onClick={() => window.location.reload()}
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
+  
+  const { message: scoreMessage, color: scoreColor } = getScoreMessageAndColor(userScore?.score);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -294,10 +241,10 @@ const CreditScore = () => {
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Credit Score Section */}
+        {/* Credit Score Section - First Column */}
         <div className="card">
           <div className="flex flex-col items-center">
-            <div className="w-48 h-48 relative mb-4">
+            <div className="w-64 h-64 relative mb-4">
               <Doughnut data={scoreChartData} />
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center">
@@ -308,84 +255,67 @@ const CreditScore = () => {
                 </div>
               </div>
             </div>
+            
             <div className="text-center">
               <h2 className="text-xl font-bold mb-2">{userScore?.level}</h2>
-              <p className="text-text-muted mb-4">{userScore?.message}</p>
-
+              <p className={`text-xl font-bold mb-4 ${scoreColor}`}>{scoreMessage}</p>
+              
               <div className="bg-secondary p-4 rounded-lg">
                 <h3 className="text-primary font-bold mb-2">What This Means</h3>
                 <p className="text-sm text-text-muted">
-                  {userScore?.level === "Excellent"
-                    ? "You have access to the highest loan amounts and lowest interest rates."
-                    : userScore?.level === "Good" ||
-                      userScore?.level === "Very Good"
-                    ? "You have access to competitive loan offers with favorable terms."
-                    : userScore?.level === "Fair"
-                    ? "You qualify for standard loan offers with standard interest rates."
-                    : "You have limited loan options. Improve your score by using UPI more frequently."}
+                  {message}
                 </p>
+                
+                <div className="mt-4 p-3 bg-background rounded-lg">
+                  <p className="text-sm">
+                    <span className="font-bold">Eligible Loan Amount:</span> ₹{userScore?.loanLimit.toLocaleString()}
+                  </p>
+                  <p className="text-sm">
+                    <span className="font-bold">Last Updated:</span> {userScore?.lastUpdated}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Score Factors Section */}
+        {/* Improvement Suggestions Section - Second Column */}
         <div className="card">
           <h2 className="text-xl font-bold mb-4 text-primary">
-            What Affects Your Score
+            Suggestions to Improve Your Score
           </h2>
-          <div className="h-64">
-            <Bar data={factorsChartData} options={factorsChartOptions} />
-          </div>
-
-          <div className="mt-6">
-            <h3 className="font-bold mb-2">Boost Your Score</h3>
-            <ul className="space-y-2 text-sm text-text-muted">
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>Make more frequent UPI transactions</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>Pay bills consistently on time</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>Use UPI at a variety of merchants</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>Maintain regular transaction patterns</span>
-              </li>
-              <li className="flex items-start">
-                <span className="text-primary mr-2">•</span>
-                <span>Upload your recent UPI transaction history</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Score Calculation Section */}
-      <div className="card mt-6">
-        <h2 className="text-xl font-bold mb-4 text-primary">
-          How We Calculate Your Score
-        </h2>
-        <div className="space-y-4">
-          <p className="text-text-muted">
-            Your FinUPI score is calculated using advanced AI algorithms that
-            analyze your UPI transaction history. The score is updated daily and
-            reflects your financial behavior.
-          </p>
-
-          <div className="bg-secondary p-4 rounded-lg">
-            <h3 className="font-bold text-primary mb-2">Factors We Consider</h3>
-            <p className="text-sm text-text-muted">
-              Our model analyzes transaction frequency, merchant diversity,
-              credit-debit ratio, transaction growth, and spending patterns.
-              Unlike traditional credit scores that require extensive credit
-              history, our algorithm works with just your UPI transaction data.
+          
+          <div className="space-y-4">
+            <p className="text-text-muted mb-4">
+              Follow these recommendations to boost your FinUPI credit score and increase your loan eligibility:
             </p>
+            
+            {suggestions.length > 0 ? (
+              <ol className="space-y-3 pl-4">
+                {suggestions.map((suggestion, index) => (
+                  <li key={index} className="flex items-start">
+                    <span className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-background font-bold mr-3">
+                      {index + 1}
+                    </span>
+                    <span className="text-text">{suggestion}</span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-green-500 text-xl font-bold">Whoa you're looking good!</p>
+                <p className="text-text-muted mt-2">Keep maintaining your excellent financial habits.</p>
+              </div>
+            )}
+            
+            <div className="mt-6 text-center">
+              <a 
+                href="/resources" 
+                className="text-primary hover:underline"
+              >
+                Explore our financial improvement resources
+              </a>
+            </div>
           </div>
         </div>
       </div>

@@ -10,8 +10,22 @@ const LoanOffers = () => {
   const [loading, setLoading] = useState(true);
   const [selectedAmount, setSelectedAmount] = useState(5000);
   const [selectedDuration, setSelectedDuration] = useState(7);
+  
+  // Get credit score data from localStorage
+  const [creditScore, setCreditScore] = useState(parseInt(localStorage.getItem('creditScore') || "0"));
+  const [maxLoanAmount, setMaxLoanAmount] = useState(parseInt(localStorage.getItem('maxLoanAmount') || "50000"));
+  const [maxLoanDuration, setMaxLoanDuration] = useState(parseInt(localStorage.getItem('maxLoanDuration') || "30"));
 
   useEffect(() => {
+    // Get values from localStorage
+    const storedCreditScore = localStorage.getItem('creditScore');
+    const storedMaxLoanAmount = localStorage.getItem('maxLoanAmount'); 
+    const storedMaxLoanDuration = localStorage.getItem('maxLoanDuration');
+    
+    if (storedCreditScore) setCreditScore(parseInt(storedCreditScore));
+    if (storedMaxLoanAmount) setMaxLoanAmount(parseInt(storedMaxLoanAmount));
+    if (storedMaxLoanDuration) setMaxLoanDuration(parseInt(storedMaxLoanDuration));
+    
     // Simulate API call with setTimeout
     setTimeout(() => {
       setOffers(mockLoanOffers);
@@ -19,6 +33,13 @@ const LoanOffers = () => {
       setLoading(false);
     }, 1000);
   }, []);
+
+  // Update selected amount if it's greater than max loan amount
+  useEffect(() => {
+    if (selectedAmount > maxLoanAmount) {
+      setSelectedAmount(maxLoanAmount);
+    }
+  }, [maxLoanAmount]);
 
   if (loading) {
     return (
@@ -50,7 +71,7 @@ const LoanOffers = () => {
               <input
                 type="range"
                 min="1000"
-                max="50000"
+                max={maxLoanAmount}
                 step="1000"
                 value={selectedAmount}
                 onChange={(e) => setSelectedAmount(Number(e.target.value))}
@@ -58,7 +79,7 @@ const LoanOffers = () => {
               />
               <div className="flex justify-between text-xs text-text-muted mt-1">
                 <span>₹1,000</span>
-                <span>₹50,000</span>
+                <span>₹{maxLoanAmount}</span>
               </div>
             </div>
 
@@ -69,7 +90,7 @@ const LoanOffers = () => {
               <input
                 type="range"
                 min="1"
-                max="30"
+                max={maxLoanDuration}
                 step="1"
                 value={selectedDuration}
                 onChange={(e) => setSelectedDuration(Number(e.target.value))}
@@ -77,7 +98,7 @@ const LoanOffers = () => {
               />
               <div className="flex justify-between text-xs text-text-muted mt-1">
                 <span>1 day</span>
-                <span>30 days</span>
+                <span>{maxLoanDuration} days</span>
               </div>
             </div>
           </div>
@@ -107,7 +128,7 @@ const LoanOffers = () => {
 
             <div className="border-t border-primary/30 pt-3 mt-3">
               <div className="flex justify-between">
-                <span className="font-bold">Total Repayment</span>
+                <span className="font-bold mb-8">Total Repayment</span>
                 <span className="font-bold text-primary">
                   ₹{totalRepayment.toFixed(2)}
                 </span>
@@ -116,7 +137,7 @@ const LoanOffers = () => {
 
             <Link
               to={`/apply-loan/${selectedAmount}-${selectedDuration}`}
-              className="btn-primary w-full text-center mt-4"
+              className="btn-primary w-full text-center mt-12"
             >
               Apply Now
             </Link>
@@ -198,8 +219,8 @@ const LoanOffers = () => {
             <div className="absolute -right-10 -top-10 w-20 h-20 bg-primary/20 rounded-full"></div>
             <h3 className="font-bold text-lg mb-2">Premium Loan</h3>
             <div className="mb-4">
-              <span className="text-2xl font-bold">₹20,000 - ₹50,000</span>
-              <span className="block text-sm text-text-muted">14-30 days</span>
+              <span className="text-2xl font-bold">₹20,000 - ₹{maxLoanAmount}</span>
+              <span className="block text-sm text-text-muted">14-{maxLoanDuration} days</span>
             </div>
             <ul className="text-sm space-y-2 mb-4">
               <li className="flex items-start">
@@ -216,8 +237,8 @@ const LoanOffers = () => {
               </li>
             </ul>
             <Link
-              to="/apply-loan/30000-30"
-              className="btn-primary inline-block w-full text-center"
+              to={`/apply-loan/${Math.min(30000, maxLoanAmount)}-${maxLoanDuration}`}
+              className="btn-primary inline-block w-full text-center mt-8"
             >
               Apply Now
             </Link>
@@ -243,8 +264,8 @@ const LoanOffers = () => {
             <div>
               <h3 className="font-bold text-primary">Boost Your Loan Limit</h3>
               <p className="text-sm text-text-muted">
-                Your current FinUPI score of {userScore?.score} qualifies you
-                for loans up to ₹{userScore?.loanLimit || offers[0]?.maxAmount}.
+                Your current FinUPI score of {creditScore} qualifies you
+                for loans up to ₹{maxLoanAmount}.
                 Refer friends, make timely repayments, and increase your UPI
                 usage to qualify for higher loan amounts.
               </p>
